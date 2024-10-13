@@ -38,3 +38,5 @@ Icon
 *.test
 *.out
 .glide/
+
+/gen-trace

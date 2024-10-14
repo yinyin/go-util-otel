@@ -11,29 +11,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func splitHostPort(hostPort string) (host string, port int) {
-	portMultiplier := 1
-	for idx := len(hostPort) - 1; idx >= 0; idx-- {
-		ch := hostPort[idx]
-		if ch == ':' {
-			host = hostPort[:idx]
-			if (len(host) > 2) && (host[0] == '[') && (host[len(host)-1] == ']') {
-				host = host[1 : len(host)-1]
-			}
-			return
-		}
-		if ch >= '0' && ch <= '9' {
-			port += int(ch-'0') * portMultiplier
-			portMultiplier *= 10
-		} else {
-			port = 0
-			host = hostPort
-			return
-		}
-	}
-	return
-}
-
 type HTTPRequestSpanBuilder struct {
 	Tracer     trace.Tracer
 	Propagator propagation.TextMapPropagator
@@ -64,13 +41,7 @@ func (b *HTTPRequestSpanBuilder) Start(ctx context.Context, r *http.Request, spa
 	if v := r.UserAgent(); v != "" {
 		reqAttrs = append(reqAttrs, semconv.UserAgentOriginal(v))
 	}
-	remoteHost, remotePort := splitHostPort(r.RemoteAddr)
-	if remoteHost != "" {
-		reqAttrs = append(reqAttrs, semconv.NetworkPeerAddress(remoteHost))
-	}
-	if remotePort != 0 {
-		reqAttrs = append(reqAttrs, semconv.NetworkPeerPort(remotePort))
-	}
+	reqAttrs = AppendNetPeerConnAttributes(reqAttrs, r.RemoteAddr)
 	if r.URL != nil {
 		reqAttrs = append(reqAttrs, semconv.URLPath(r.URL.Path))
 		if r.URL.RawQuery != "" {

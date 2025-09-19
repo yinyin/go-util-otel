@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	exporterfilestrace "github.com/yinyin/go-otel-exporter-files/trace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
@@ -17,6 +18,7 @@ type SwitchableTraceExporter struct {
 
 	stdoutExporter *stdouttrace.Exporter
 	otlpExporter   *otlptrace.Exporter
+	filesExporter  *exporterfilestrace.FilesTraceExporter
 
 	fnExportSpans [switchModeCount]callableExportSpans
 }
@@ -24,7 +26,8 @@ type SwitchableTraceExporter struct {
 func NewSwitchableTraceExporter(
 	ctx context.Context,
 	stdoutOpts []stdouttrace.Option,
-	otlpGRPCOpts []otlptracegrpc.Option) (traceExporter *SwitchableTraceExporter, err error) {
+	otlpGRPCOpts []otlptracegrpc.Option,
+	filesOpts []exporterfilestrace.Option) (traceExporter *SwitchableTraceExporter, err error) {
 	x := &SwitchableTraceExporter{}
 	if stdoutOpts != nil {
 		if x.stdoutExporter, err = stdouttrace.New(stdoutOpts...); nil != err {
@@ -40,6 +43,14 @@ func NewSwitchableTraceExporter(
 			return
 		}
 		x.fnExportSpans[ExportModeOTLPgRPC] = x.otlpExporter.ExportSpans
+	}
+	if filesOpts != nil {
+		if x.filesExporter, err = exporterfilestrace.NewFilesTraceExporter(filesOpts...); nil != err {
+			err = fmt.Errorf("failed to create Files trace exporter: %w", err)
+			x.Shutdown(ctx)
+			return
+		}
+		x.fnExportSpans[ExportModeFiles] = x.filesExporter.ExportSpans
 	}
 	traceExporter = x
 	return
@@ -74,6 +85,11 @@ func (x *SwitchableTraceExporter) Shutdown(ctx context.Context) (err error) {
 	}
 	if x.otlpExporter != nil {
 		if err = x.otlpExporter.Shutdown(ctx); nil != err {
+			allErrs = append(allErrs, err)
+		}
+	}
+	if x.filesExporter != nil {
+		if err = x.filesExporter.Shutdown(ctx); nil != err {
 			allErrs = append(allErrs, err)
 		}
 	}

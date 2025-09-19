@@ -7,7 +7,7 @@ import (
 
 var ErrUnknownExportMode = errors.New("unknown export mode")
 
-const switchModeCount = 3
+const switchModeCount = 4
 
 type ExportMode int
 
@@ -15,6 +15,7 @@ const (
 	ExportModeNoop ExportMode = iota
 	ExportModeSTDOUT
 	ExportModeOTLPgRPC
+	ExportModeFiles
 	exportModeBoundary
 )
 

@@ -38,6 +38,21 @@ func (b *HTTPRequestSpanBuilder) Start(ctx context.Context, r *http.Request, spa
 	if v := r.Header.Get("Forwarded"); v != "" {
 		reqAttrs = append(reqAttrs, attribute.String("http.request.header.forwarded", v))
 	}
+	if v := r.Header.Get("Origin"); v != "" {
+		reqAttrs = append(reqAttrs, attribute.String("http.request.header.origin", v))
+	}
+	if vs := r.Header.Values("Access-Control-Request-Headers"); len(vs) > 0 {
+		reqAttrs = append(reqAttrs, attribute.StringSlice("http.request.header.access_control_request_headers", vs))
+	}
+	if vs := r.Header.Values("Access-Control-Request-Method"); len(vs) > 0 {
+		reqAttrs = append(reqAttrs, attribute.StringSlice("http.request.header.access_control_request_method", vs))
+	}
+	if v := r.Header.Get("Referer"); v != "" {
+		reqAttrs = append(reqAttrs, attribute.String("http.request.header.referer", v))
+	}
+	if vs := r.Header.Values("Cookie"); len(vs) > 0 {
+		reqAttrs = append(reqAttrs, attribute.StringSlice("http.request.header.cookie", vs))
+	}
 	if v := r.UserAgent(); v != "" {
 		reqAttrs = append(reqAttrs, semconv.UserAgentOriginal(v))
 	}

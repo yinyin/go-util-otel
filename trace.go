@@ -60,6 +60,9 @@ func (x *SwitchableTraceExporter) SetMode(ctx context.Context, mode ExportMode) 
 	if err = checkExportMode(mode); nil != err {
 		return
 	}
+	if currentMode := ExportMode(x.modeIndex()); (currentMode == ExportModeFiles) && (x.filesExporter != nil) {
+		x.filesExporter.Flush()
+	}
 	atomic.StoreInt32(&x.currentModeIndex, int32(mode))
 	return
 }

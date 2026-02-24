@@ -27,8 +27,7 @@ func (b *HTTPRequestSpanBuilder) Init(tracer trace.Tracer, propagator propagatio
 	b.Propagator = propagator
 }
 
-func (b *HTTPRequestSpanBuilder) Start(ctx context.Context, r *http.Request, spanName string) (context.Context, trace.Span) {
-	ctx = b.Propagator.Extract(ctx, propagation.HeaderCarrier(r.Header))
+func extractHTTPRequestSpanAttributes(r *http.Request) []attribute.KeyValue {
 	reqAttrs := []attribute.KeyValue{
 		semconv.HTTPRequestMethodOriginal(r.Method),
 	}
@@ -63,6 +62,11 @@ func (b *HTTPRequestSpanBuilder) Start(ctx context.Context, r *http.Request, spa
 			reqAttrs = append(reqAttrs, semconv.URLQuery(r.URL.RawQuery))
 		}
 	}
+	return reqAttrs
+}
+
+func (b *HTTPRequestSpanBuilder) startSpanImpl(ctx context.Context, r *http.Request, spanName string, reqAttrs []attribute.KeyValue) (context.Context, trace.Span) {
+	ctx = b.Propagator.Extract(ctx, propagation.HeaderCarrier(r.Header))
 	opts := []trace.SpanStartOption{
 		trace.WithAttributes(reqAttrs...),
 	}
@@ -70,4 +74,19 @@ func (b *HTTPRequestSpanBuilder) Start(ctx context.Context, r *http.Request, spa
 		opts = append(opts, trace.WithNewRoot(), trace.WithLinks(trace.Link{SpanContext: s}))
 	}
 	return b.Tracer.Start(ctx, spanName, opts...)
+}
+
+func (b *HTTPRequestSpanBuilder) Start(ctx context.Context, r *http.Request, spanName string) (context.Context, trace.Span) {
+	reqAttrs := extractHTTPRequestSpanAttributes(r)
+	return b.startSpanImpl(ctx, r, spanName, reqAttrs)
+}
+
+func (b *HTTPRequestSpanBuilder) StartWithAttributes(
+	ctx context.Context,
+	r *http.Request,
+	spanName string,
+	spanAttributes ...attribute.KeyValue) (context.Context, trace.Span) {
+	reqAttrs := extractHTTPRequestSpanAttributes(r)
+	reqAttrs = append(reqAttrs, spanAttributes...)
+	return b.startSpanImpl(ctx, r, spanName, reqAttrs)
 }
